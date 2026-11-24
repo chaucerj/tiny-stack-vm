@@ -1,21 +1,25 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+// Hot-path note: the encoder is hoisted to module scope so the 40 instances
+// share one instead of allocating one per run; the program length is cached
+// for the same reason. Both are pure optimizations, no semantic change.
+const enc = new TextEncoder();
 const O: Record<number, [number, number, number]> = {0:[0,0,0],1:[1,0,1],2:[4,0,1],3:[0,1,0],4:[0,1,2],5:[0,2,2],6:[0,2,3],7:[0,3,3],16:[0,2,1],17:[0,2,1],18:[0,2,1],19:[0,2,1],20:[0,2,1],21:[0,2,1],22:[0,2,1],23:[0,1,1],24:[0,2,1],25:[0,2,1],26:[0,2,1],27:[0,1,1],28:[0,2,1],29:[0,2,1],30:[0,2,1],32:[0,2,1],33:[0,2,1],34:[0,2,1],48:[2,0,0],49:[2,1,0],50:[2,1,0],51:[2,0,0],52:[0,0,0],64:[0,1,1],65:[0,2,0],80:[0,1,0],81:[0,1,0],82:[0,0,1],83:[0,1,0]};
 function run(p: Uint8Array, inp: Uint8Array): { o: Uint8Array; c: number } {
   const D = new Int32Array(256); let sp = 0;
   const C = new Int32Array(64); let cp = 0;
   const M = new Int32Array(256);
   const out = new Uint8Array(65536); let ol = 0, ip = 0, pc = 0, st = 0;
-  const enc = new TextEncoder();
+  const plen = p.length;
   const done = (c: number) => ({ o: out.slice(0, ol), c });
   for (;;) {
     if (st === 1000000) return done(10);
-    if (pc < 0 || pc >= p.length) return done(9);
+    if (pc < 0 || pc >= plen) return done(9);
     const op = p[pc];
     const t = O[op];
     if (!t) return done(5);
     const im = t[0], po = t[1], pu = t[2];
-    if (pc + im >= p.length) return done(9);
+    if (pc + im >= plen) return done(9);
     st++;
     const nx = pc + 1 + im;
     if (sp < po) return done(2);
